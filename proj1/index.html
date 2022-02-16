@@ -6,25 +6,33 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CS184 Rasterizer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:ital,wght@0,300;0,400;0,500;0,600;0,700;1,300;1,400;1,500;1,600;1,700&family=Source+Code+Pro&display=swap" rel="stylesheet">
 </head>
 
 <style>
     body {
+        font-family: 'Montserrat', sans-serif;
         display: flex;
         width: 100%;
         height: 100%;
         justify-content: center;
         line-height: 150%;
+        background-image: url("Img/Background.jpeg");
+        background-repeat: repeat;
+        margin: 0 auto;
     }
     
     figure {
         width: 100%;
         margin: 0 auto;
+        margin-bottom: 100px;
     }
     
     img {
-        width: 100%;
-        min-width: 50px;
+        max-width: 80%;
+        min-width: 150px;
     }
     
     p {}
@@ -32,17 +40,16 @@
     .wrapper {
         width: 80%;
         max-width: 700px;
-        padding-top: 50px;
-        padding-bottom: 50px;
+        padding: 75px 100px 50px 100px;
+        background-color: white;
     }
     
     .img-grid {
-        width: 80%;
+        width: 100%;
         margin-top: 100px;
-        margin-bottom: 100px;
         display: flex;
         justify-content: space-between;
-        flex-wrap: wrap;
+        /* flex-wrap: wrap; */
     }
 </style>
 
@@ -52,110 +59,147 @@
         <h4>By Team Lucies (Lucy Lou and Lucy Wan)</h4>
         <br>
         <h2>Overview</h2>
-        <p>In this project, we rasterized triangles from three given vertice points and a color. We started off simple with sampling per pixel, then moved on to implement supersampling and texture filtering on pixels and mipmap levels. We also wrote functions
-            to support transforms and color gradients. It was interesting seeing the drastic difference going from single pixel sampling to texture filtering, and being able to switch between the two easily. It was also interesting to realize that color
-            gradients can be formed from triangles with interpolation of the colors.</p>
+        <p>In this project, we rasterized triangles from three given vertice points and different colors. We started off simple with sampling per pixel, then moved on to implement supersampling and texture filtering on pixels and mipmap levels. We also wrote functions to support transforms and color gradients. It was interesting seeing the drastic difference going from single pixel sampling to texture filtering, and being able to switch between the two easily. It was also interesting to realize that color gradients can be formed from triangles with interpolation of the colors.</p>
         <br>
         <h2>Task 1: Drawing Single-Color Triangles</h2>
-        <p>In this first task, we are given the 3 points of the triangle. We found the minimum X, maximum X, minimum Y, and maximum Y values from these points and took the floor of the minimums and the ceiling of the maximums so they were rounded to integers
-            that could form a rectangle we can loop through. We then had a double for loop, starting from minX+0.5 and minY+0.5 and incrementing by 1 pixel because we wanted to check if the center of the coordinate was in the triangle. Inside that double
-            for loop we called the function inside from Triangulation.cpp to check if the current x and y coordinate our loop was on was inside the triangle. If it was, we called fill_pixel with those x y values and the given color. Last we updated the
-            Triangulation inside function to support different directions of vertices ordering by including that not only if the cross product signs were both positive but also if they were all negative, the point is inside the triangle.
+        <p>In this first task, we are given the 3 points of the triangle. We found the minimum X, maximum X, minimum Y, and maximum Y values from these points and took the floor of the minimums and the ceiling of the maximums so they were rounded to integers that could form a rectangle we can loop through. We then had a double for loop, starting from minX+0.5 and minY+0.5 and incrementing by 1 pixel because we wanted to check if the center of the coordinate was in the triangle. Inside that double for loop we called the function inside from Triangulation.cpp to check if the current x and y coordinate our loop was on was inside the triangle. If it was, we called fill_pixel with those x y values and the given color. Lastly, we updated the inside function in  triangulation.cpp to support different vertex input orderings by including that if all the cross product signs were negative, the point is inside the triangle (before only the case where all the cross product signs were positive was accounted for).
         </p>
-        <p>Here is an example of rasterized triangles. Since we are sampling at 1 pixel, the boundaries are very sharp with jaggies. In fact, as shown with the pixel inspector, on the very skinny red triangle, the tip isn’t even connected.
+        <p>We used a bounding box for our algorithm, but even if we hadn’t used a bounding box, it would have been no worse in terms of image quality since both methods lead to the same image. Bounding box only reduces redundancy in terms of calculations which in turn makes our application faster.
         </p>
+        <p>Here is an example of rasterized triangles. Since we are sampling at 1 pixel, the boundaries are very sharp with jaggies. In fact, as shown with the pixel inspector, on the very skinny red triangle, the tip isn’t even connected.</p>
         <div class="img-grid">
             <figure>
-                <img src="reportImg/Task1.png" alt="Task 1 Sample Rate 1 Triangles">
+                <img src="Img/Task1.png" alt="Task 1 Sample Rate 1 Triangles">
                 <figcaption>Sample Rate 1 Triangles</figcaption>
             </figure>
         </div>
         <h2>Task 2: Antialiasing by Supersampling</h2>
-        <p>To implement supersampling, we similarly loop through the triangle bounding box, but now we also double for loop inside each individual pixel as well to sample fractions of the pixel. We start at an offset of ½*sqrt(sample_rate) and increment
-            by 1/sqrt(sample_rate) both in the x and y directions. We check if the area sampled is inside the triangle and if so we store the color value in our sample buffer at the correct index. Our sample buffer is the size of the screen multiplied
-            by our sample rate so that it can store the sample rate amount of color data per pixel. After all the values are stored in the sample buffer, we resolve these values to the framebuffer. We need to take the averages of the colors we got from
-            each fractional pixel sample and use that average value as the value to display for that pixel. We loop through in the same way as before and find the average color for each pixel and set the RGB channels in the framebuffer accordingly. Lastly,
-            we updated our fill pixel function to be up to date for the sample buffer size.</p>
-        <p>Super sampling is useful because it decreases the sharp jaggies found in images that have edges that aren’t straight horizontal or vertical. It creates a smoother edge with the averaging. For example, zooming in on non-supersampled triangles with
-            the edges that go diagonally, there is a staircase effect. By super sampling, that edge becomes smoother with less triangle color because at the edge, certain fractional areas of the pixel aren't inside the triangle. The same benefits triangles
-            that are very skinny.</p>
-        <p>Here is the pixel inspector at the same skinny triangle point. At sample rate 1, each pixel is the same color resulting in jagged edges and unconnected tip. Increasing the sample rate to 4 already significantly improves the quality. There’s no
-            more unconnected tip and the jaggies are less pronounced; however, it has also slightly cut off the tip by a few pixels. At sample rate 9, we see the full length of the triangle and the point is noticeably smoother, and by sample rate 16 the
-            edges are straighter. These results are observed due to the averaging of colors since only a few fractional pixel areas fall inside this triangle and will be added to the color average while the parts that don’t will decrease the color intensity
-            of the average.</p>
+        <p>To implement supersampling, similarly to task 1, we used the same two data structures as Task 1, the sample buffer (for storing sampled values) and the frame buffer (for storing pixels to be displayed). We also loop through the triangle bounding box to account for every point in the triangle. However,now we also add a double for loop to loop through the subsamples within each pixel. We start at an offset of ½*sqrt(sample_rate) and increment by 1/sqrt(sample_rate) both in the x and y directions to iterate through each subsample. We check if the area sampled is inside the triangle and if so we store the color value in our sample buffer at the correct index, which we calculate by using a counter variable. Our sample buffer is the size of the screen multiplied by our sample rate  to account for the extra samples for each pixel. After all the values are stored in the sample buffer, we resolve these values to the framebuffer by taking the averages of the colors we get from each pixel and  storing that value in its respective location within the frame buffer. Since the frame buffer stores colors differently from the sample buffer, we had to remember to convert between Color objects and RGB channels in this step. Lastly, we updated our fill_pixel() function to account for the increased sample buffer size  by filling in sample_rate amount of values within the sample buffer per pixel (instead of one value per pixel as in Task 1).
+        </p>
+        <p>Super sampling is useful because it antialiases by decreasing the amount of sharp jaggies found in images. It creates smoother edges by averaging multiple values within a pixel to make the image more blurred rather than sharp. For example, zooming in on non-supersampled triangles with the edges that go diagonally, there is a staircase effect. The same benefits triangles that are very skinny.
+        </p>
+        <p>For modifications in the rasterization pipeline, as stated above, we modified the sample buffer to account for the sample rate, added a double for loop within our rasterizing function in order to get to each subsample, and averaged the subsamples to get our frame buffer.
+        </p>
+        <p>
+            We used supersampling to antialias our triangles to blend the edges and the background together creating a smoothing effect.
+        </p>
+        <p>
+            Here is the pixel inspector at the same skinny triangle point. At sample rate 1, each pixel is the same color resulting in jagged edges and an unconnected tip. Increasing the sample rate to 4 already significantly improves the quality. There’s no more unconnected tip and the jaggies are less pronounced; however, it has also slightly cut off the tip by a few pixels. At sample rate 9, we see the full length of the triangle and the point is noticeably smoother, and by sample rate 16 the edges are straighter. These results are observed since supersampling reduces aliasing by having a smoothing effect through blurring jaggies.
+        </p>
         <div class="img-grid">
             <figure>
-                <img src="reportImg/Task2-1.png" alt="Task 2 Sample Rate 1 Triangles">
+                <img src="Img/Task2-1.png" alt="Task 2 Sample Rate 1 Triangles">
                 <figcaption>Sample Rate 1 Triangles</figcaption>
             </figure>
             <figure>
-                <img src="reportImg/Task2-4.png" alt="Task 2 Sample Rate 4 Triangles">
+                <img src="Img/Task2-4.png" alt="Task 2 Sample Rate 4 Triangles">
                 <figcaption>Sample Rate 4 Triangles</figcaption>
             </figure>
             <figure>
-                <img src="reportImg/Task2-9.png" alt="Task 2 Sample Rate 9 Triangles">
+                <img src="Img/Task2-9.png" alt="Task 2 Sample Rate 9 Triangles">
                 <figcaption>Sample Rate 9 Triangles</figcaption>
             </figure>
             <figure>
-                <img src="reportImg/Task2-16.png" alt="Task 2 Sample Rate 16 Triangles">
+                <img src="Img/Task2-16.png" alt="Task 2 Sample Rate 16 Triangles">
                 <figcaption>Sample Rate 16 Triangles</figcaption>
             </figure>
         </div>
         <h2>Task 3: Transforms</h2>
-        <p>This is Lucy Robot. Both my name and my partner’s name is Lucy, thus the L on the shirt. The shirt is also half baby pink, my favorite color, and half yellow, my partner’s favorite color. Black or white pants go with everything, but since the
-            background was white I went with black. I also added eyes because eyes are the windows to the soul, shoes so she’s not barefoot, moved the left arm down because that’s tiring to have it up, and made the right arm wave because she’s friendly.</p>
+        <p>This is Lucy Robot. Both my name and my partner’s name is Lucy, thus the L on the shirt. The shirt is also half baby pink, my favorite color, and half yellow, my partner’s favorite color. Black or white pants go with everything, but since the background was white I went with black. I also added eyes because eyes are the windows to the soul, shoes so she’s not barefoot, moved the left arm down because that’s tiring to have it up, and made the right arm wave because she’s friendly.
+        </p>
         <div class="img-grid">
             <figure>
-                <img src="reportImg/Task3.png" alt="Task 3 Transforms Cube Man">
+                <img src="Img/Task3.png" alt="Task 3 Transforms Cube Man">
                 <figcaption>Lucy Robot</figcaption>
             </figure>
         </div>
         <h2>Task 4: Barycentric Coordinates</h2>
-        <p>Barycentric coordinates are the α, β, and γ in the equation V = αVA + βVB + γVC where VA, VB, and VC are the coordinates of the 3 triangle vertices and V is the value of the point which we are finding the Barycentric coordinates for. If V falls
-            inside the triangle, α, β, and γ add up to 1 and are used as scaling factors of the interpolation of vertices VA, VB, and VC to produce V. This results in a smooth blended triangle if each vertex is assigned a different color.
+        <p>
+            Barycentric coordinates are the distance proportions a point is from each vertex of a shape. As a result they add up to 1. They give us ratios of how much of the values at each vertex to use to interpolate each value within the shape.
+        </p>
+        <p>
+            In the case of Task 4, our barycentric coordinates are α, β, and γ where  V = αVA + βVB + γVC and  VA, VB, and VC are the color values  of the 3 triangle vertices and V is the value of the point which we are finding the resulting interpolated color.
+        </p>
+        <p>
+            This results in a smoothly blended triangle with each pixel assigned a different color. For example, in the image below we have a triangle interpolated with red, blue, and green corners.
         </p>
         <div class="img-grid">
             <figure>
-                <img src="reportImg/Task4-Triangle.png" alt="Task 4 Barycentric Coordinates shown with a triangle with 3 different colors on each vertex">
-                <figcaption>From Lecture 5</figcaption>
+                <img src="Img/Task4-Created-Triangle.png" alt="Task 4 Barycentric Coordinates shown with a triangle with 3 different colors on each vertex">
+                <figcaption>Barycentric Coordinates Visual</figcaption>
+            </figure>
+            <figure>
+                <img src="Img/Task4.png" alt="Task 4 Barycentric Coordinates shown with a triangle with 3 different colors on each vertex">
+                <figcaption>Test 7 Sample Rate 1</figcaption>
             </figure>
         </div>
-        <h2>Task 5: "Pixel sampling" for Texture Mapping</h2>
-        <p>Pixel sampling is representing a spot in a real life image as a pixel. Nearest sampling takes the nearest pixel to the point we want to sample, so we round the x and y values to get to the nearest pixel. Bilinear sampling uses interpolation of
-            the four pixels adjacent to the point we want to sample. It does this by first interpolating horizontally between the top two points and the bottom two points then vertically with the resulting two points.
+        <p>
+            Footnote: In terms of implementation, we use a similar rasterization algorithm as in Task 2. However this time, instead of simply filling pixels with a given color, we use V = αVA + βVB + γVC to find out what the color of our current coordinate should be. Though there are many ways to find barycentric coordinates, we used matrix calculations since to us it made the code look cleaner. Specifically we multiplied the inverse of a 3x3 matrix [x0, x1, x2, y0, y1, y2, 1, 1, 1] with [x, y, 1] (where (x, y) is the current coordinate we’re looking at)to produce [α, β, γ].
         </p>
-        <p>This is an image of the Campanile with the pixel inspector on the windows. Nearest at sample rate 1, has very blocky pixels. By sample rate 16, it’s significantly smoother. With bilinear sampling, even at sample rate 1, produces a better quality,
-            smoother image than nearest at sample rate 1. With both bilinear sampling and supersampling at 16 samples per pixel, we get the smoothest result. The individual pixels are a lot more blended and although the image looks “fuzzier” zoomed in,
-            it looks better at the normal size with less aliasing.
+        <h2>Task 5: "Pixel sampling" for Texture Mapping</h2>
+        <p>
+            Pixel sampling is representing a spot in a real life image as a pixel. Nearest sampling takes the nearest pixel to the point we want to sample, so we round the x and y values to get to the nearest pixel. Bilinear sampling uses interpolation of  the four pixels adjacent to the point we want to sample. It does this by first interpolating horizontally between the top two points and the bottom two points then vertically with the resulting two points.
+        </p>
+        <p>
+            To implement pixel sampling to perform texture mapping, we first calculate the (u, v) value of a texture map from the corresponding (x, y) value from the approach in Task 2. We get from (x, y) to (u, v) by finding the barycentric coordinates of (x, y) and applying them to the vertices of the texture map to find (u, v). We then use the inputted pixel sampling method to get the color value at (u, v) using the processes described above.
+        </p>
+        <p>
+            This is an image of the Campanile with the pixel inspector on the windows. Nearest at sample rate 1, has very blocky pixels. By sample rate 16, it’s significantly smoother. With bilinear sampling, even at sample rate 1, produces a better quality, smoother image than nearest at sample rate 1. With both bilinear sampling and supersampling at 16 samples per pixel, we get the smoothest result. The individual pixels are a lot more blended and although the image looks “fuzzier” zoomed in, it looks better at the normal size with less aliasing. 
         </p>
         <div class="img-grid">
             <figure>
-                <img src="reportImg/Task5-SR1-N.png" alt="Task 5 Sample Rate 1 Nearest Filtering">
+                <img src="Img/Task5-SR1-N.png" alt="Task 5 Sample Rate 1 Nearest Filtering">
                 <figcaption>Sample Rate 1, Nearest Filtering</figcaption>
             </figure>
             <figure>
-                <img src="reportImg/Task5-SR16-N.png" alt="Task 5 Sample Rate 16 Nearest Filtering">
+                <img src="Img/Task5-SR16-N.png" alt="Task 5 Sample Rate 16 Nearest Filtering">
                 <figcaption>Sample Rate 16, Nearest Filtering</figcaption>
             </figure>
             <figure>
-                <img src="reportImg/Task5-SR1-B.png" alt="Task 5 Sample Rate 1 Bilinear Filtering">
+                <img src="Img/Task5-SR1-B.png" alt="Task 5 Sample Rate 1 Bilinear Filtering">
                 <figcaption>Sample Rate 1, Bilinear Filtering</figcaption>
             </figure>
             <figure>
-                <img src="reportImg/Task5-SR16-B.png" alt="Task 5 Sample Rate 16 Bilinear Filtering">
+                <img src="Img/Task5-SR16-B.png" alt="Task 5 Sample Rate 16 Bilinear Filtering">
                 <figcaption>Sample Rate 16, Bilinear Filtering</figcaption>
             </figure>
         </div>
-        <p>In general, bilinear sampling will make a large difference on images with small details in contrasting colors. A bilinear sampled image will look similar to a nearest sampled one in areas of similar color, for example the sky. This is because
-            bilinear sampling blends multiple adjacent pixels into our sampling.</p>
+        <p>In general, bilinear sampling will make a large difference on images with small details in contrasting colors. A bilinear sampled image will look similar to a nearest sampled one in areas of similar color, for example the sky. This is because bilinear sampling blends multiple adjacent pixels into our sampling.</p>
         <div class="img-grid">
             <figure>
-                <img src="reportImg/Task5-SkyN.png" alt="Task 5 Sky with nearest filtering">
+                <img src="Img/Task5-SkyN.png" alt="Task 5 Sky with nearest filtering">
                 <figcaption>Sky with Nearest Filtering</figcaption>
             </figure>
             <figure>
-                <img src="reportImg/Task5-SkyB.png" alt="Task 5 Sky with bilinear filtering">
+                <img src="Img/Task5-SkyB.png" alt="Task 5 Sky with bilinear filtering">
                 <figcaption>Sky with Bilinear Filtering</figcaption>
+            </figure>
+        </div>
+        <h2>Task 6: "Level sampling" with Mipmaps for Texture Mapping</h2>
+        <p>Level sampling is sampling from different minimap levels depending on how the x and y values adjacent to a point change on the corresponding texture map. The purpose of level sampling is to make an image more realistic by having pixels that represent
+            parts of the image further back to be more blurred. We implemented level sampling by calculating the barycentric coordinates of (x, y), (x, y+1), and (x+1, y) and find their corresponding coordinates on the texture map. We used these values
+            to find our difference vectors du/dx and dv/dy, which we then use to find the level as a float using the equations to find the level as shown in lecture. If our level sampling method is “nearest,” we round this value, and if it is “linear,”
+            we interpolate this value with the colors of the two adjacent levels closest to our float.</p>
+        <p>Compared to the other two ways of antialising, level sampling is the fastest, but also uses more memory than bilinear pixel interpolation as it uses a struct. Number of samples per pixel is the most straightforward with minimal calculations, but
+            slow performance as it’s “enlarging” the picture multiple times to achieve the antialiasing. All three antialias well, and the choice of which one depends on the picture.</p>
+        <p>Comparing the combinations of these forms of sampling, we see when both are used together we get the smoothes image, but it may even seem blurry. Level zero and pixel linear looks a little jaggedy still. Level zero with nearest pixel sampling
+            looks similar to linear pixel sampling, but linear is slightly smoother.</p>
+        <div class="img-grid">
+            <figure>
+                <img src="Img/Task6-L0PN.png" alt="Task 6 Level 0 Nearest Pixel Filtering">
+                <figcaption>0 Nearest Pixel Filtering</figcaption>
+            </figure>
+            <figure>
+                <img src="Img/Task6-L0PL.png" alt="Task 6 Level 0 Linear Pixel Filtering">
+                <figcaption>Level 0 Linear Pixel Filtering</figcaption>
+            </figure>
+            <figure>
+                <img src="Img/Task6-LNPN.png" alt="Task 6 Nearest Level Nearest Pixel Filtering">
+                <figcaption>6 Nearest Level Nearest Pixel Filtering</figcaption>
+            </figure>
+            <figure>
+                <img src="Img/Task6-LNPL.png" alt="Task 6 Nearest Level Linear Pixel Filtering">
+                <figcaption>6 Nearest Level Linear Pixel Filtering</figcaption>
             </figure>
         </div>
     </div>
